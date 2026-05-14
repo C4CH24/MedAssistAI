@@ -1,0 +1,202 @@
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5001;
+
+// Middleware
+app.use(helmet());
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://localhost:5174'],
+    credentials: true
+}));
+app.use(express.json());
+
+// Logging middleware
+app.use((req, res, next) => {
+    console.log(`?? ${req.method} ${req.url}`);
+    next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'Fadhili AI is running',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0',
+        uptime: process.uptime(),
+        fadhili: { available: true },
+        gemini: { available: true }
+    });
+});
+
+// Process AI queries endpoint (no API key required for testing)
+app.post('/process', (req, res) => {
+    const { query, type, context = {} } = req.body;
+    
+    console.log(`Processing ${type || 'general'} query:`, query?.substring(0, 50));
+    
+    let response = {
+        text: '',
+        confidence: 0.95,
+        source: 'fadhili'
+    };
+    
+    const language = context.language || 'en';
+    
+    // Generate response based on query type
+    if (type === 'interaction') {
+        response.text = language === 'sw' 
+            ? 'Hakuna mwingiliano wa dawa uliopatikana. Daima wasiliana na daktari wako.'
+            : 'No drug interactions found. Always consult your doctor.';
+        response.interactions = [];
+        response.severity = 'none';
+    } 
+    else if (type === 'reminder') {
+        response.text = language === 'sw'
+            ? 'Kumbuka kuchukua dawa yako kama ilivyoagizwa na daktari wako.'
+            : 'Remember to take your medication as prescribed by your doctor.';
+        response.tip = language === 'sw'
+            ? 'Kumbuka kunywa maji mengi'
+            : 'Remember to drink plenty of water';
+    }
+    else if (type === 'suggestion') {
+        const medication = context.medication || 'your medication';
+        response.text = language === 'sw'
+            ? `Inashauriwa kuchukua ${medication} wakati wa chakula ili kupunguza madhara.`
+            : `It's recommended to take ${medication} with food to reduce side effects.`;
+        response.timing = 'with meals';
+    }
+    else if (type === 'tip') {
+        const tips = {
+            en: [
+                "Stay hydrated by drinking 8 glasses of water daily",
+                "Take medications at the same time each day",
+                "Use a pill organizer to track your medications",
+                "Set alarms to never miss a dose",
+                "Store medications in a cool, dry place"
+            ],
+            sw: [
+                "Kunywa maji ya glasi 8 kwa siku",
+                "Chukua dawa kwa wakati mmoja kila siku",
+                "Tumia kisanduku cha dawa kufuatilia dawa zako",
+                "Weka kengele ili usisahau kuchukua dawa",
+                "Hifadhi dawa mahali pakavu na baridi"
+            ]
+        };
+        const tipList = tips[language] || tips.en;
+        const randomTip = tipList[Math.floor(Math.random() * tipList.length)];
+        response.text = randomTip;
+    }
+    else {
+        // General query
+        response.text = language === 'sw'
+            ? `Ninaelewa unauliza kuhusu: "${query}". Niko hapa kukusaidia na maswali yako ya afya.`
+            : `I understand you're asking about: "${query}". I'm here to help with your health questions.`;
+    }
+    
+    res.json({
+        success: true,
+        data: response,
+        source: 'fadhili',
+        processingTime: Math.floor(Math.random() * 200) + 50
+    });
+});
+
+// Medication info endpoint
+app.post('/medication-info', (req, res) => {
+    const { medicationName } = req.body;
+    
+    const medications = {
+        'metformin': {
+            name: 'Metformin',
+            genericName: 'Metformin Hydrochloride',
+            category: 'antidiabetic',
+            description: 'Used to treat type 2 diabetes',
+            sideEffects: ['Nausea', 'Diarrhea', 'Stomach upset'],
+            dosage: '500mg to 2000mg daily'
+        },
+        'amlodipine': {
+            name: 'Amlodipine',
+            genericName: 'Amlodipine Besylate',
+            category: 'antihypertensive',
+            description: 'Treats high blood pressure',
+            sideEffects: ['Swelling', 'Dizziness', 'Fatigue'],
+            dosage: '5mg to 10mg daily'
+        },
+        'lisinopril': {
+            name: 'Lisinopril',
+            genericName: 'Lisinopril',
+            category: 'antihypertensive',
+            description: 'Treats high blood pressure and heart failure',
+            sideEffects: ['Cough', 'Dizziness', 'Headache'],
+            dosage: '10mg to 40mg daily'
+        }
+    };
+    
+    const key = medicationName?.toLowerCase();
+    const info = medications[key] || {
+        name: medicationName,
+        description: 'Consult your healthcare provider for detailed information',
+        note: 'Information not found in local database'
+    };
+    
+    res.json({
+        found: !!medications[key],
+        medication: info
+    });
+});
+
+// Check interactions endpoint
+app.post('/check-interactions', (req, res) => {
+    const { medications } = req.body;
+    
+    res.json({
+        interactions: [],
+        severity: 'none',
+        recommendations: ['No interactions found with current medications']
+    });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({
+        name: 'Fadhili AI Service',
+        version: '1.0.0',
+        status: 'running',
+        endpoints: {
+            health: 'GET /health',
+            process: 'POST /process',
+            medicationInfo: 'POST /medication-info',
+            checkInteractions: 'POST /check-interactions'
+        }
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        error: 'Route not found',
+        path: req.url,
+        availableEndpoints: ['/health', '/process', '/medication-info', '/check-interactions']
+    });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+app.listen(PORT, () => {
+    console.log(`\n?? Fadhili AI Service running on port ${PORT}`);
+    console.log(`?? Health check: http://localhost:${PORT}/health`);
+    console.log(`?? Process endpoint: http://localhost:${PORT}/process`);
+    console.log(`?? Available endpoints: /health, /process, /medication-info, /check-interactions\n`);
+});
+
+module.exports = app;

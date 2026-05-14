@@ -1,0 +1,123 @@
+﻿const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+    phoneNumber: {
+        type: String,
+        required: [true, 'Phone number is required'],
+        unique: true,
+        trim: true,
+        match: [/^[0-9]{9}$/, 'Please enter a valid 9-digit phone number']
+    },
+    fullName: {
+        type: String,
+        required: [true, 'Full name is required'],
+        trim: true,
+        minlength: [2, 'Name must be at least 2 characters'],
+        maxlength: [50, 'Name cannot exceed 50 characters']
+    },
+    pin: {
+        type: String,
+        required: [true, 'PIN is required'],
+        minlength: 6,
+        maxlength: 6,
+        select: false
+    },
+    language: {
+        type: String,
+        enum: ['en', 'sw'],
+        default: 'en'
+    },
+    conditions: [{
+        type: String,
+        enum: ['hypertension', 'diabetes', 'asthma', 'hiv', 'arthritis', 'cancer', 'heart_disease', 'kidney_disease', 'other']
+    }],
+    emergencyContact: {
+        name: String,
+        phoneNumber: {
+            type: String,
+            match: [/^[0-9]{9}$/, 'Please enter a valid 9-digit phone number']
+        },
+        relationship: String
+    },
+    notificationPreferences: {
+        inApp: { type: Boolean, default: true },
+        sms: { type: Boolean, default: true },
+        email: { type: Boolean, default: false },
+        quietHoursStart: { type: String, default: '22:00' },
+        quietHoursEnd: { type: String, default: '07:00' }
+    },
+    role: {
+        type: String,
+        enum: ['patient', 'caregiver', 'provider', 'admin'],
+        default: 'patient'
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    lastActive: {
+        type: Date,
+        default: Date.now
+    },
+    dataConsent: {
+        type: Boolean,
+        default: false,
+        required: [true, 'Data consent is required']
+    },
+    consentGivenAt: Date,
+    deviceTokens: [String],
+    metadata: {
+        registrationSource: { type: String, default: 'web' },
+        deviceInfo: mongoose.Schema.Types.Mixed,
+        lastIpAddress: String
+    }
+}, {
+    timestamps: true
+});
+
+// Indexes
+userSchema.index({ phoneNumber: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ 'conditions': 1 });
+
+// Hash PIN before saving
+userSchema.pre('save', async function(next) {
+    if (!this.isModified('pin')) return next();
+    
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.pin = await bcrypt.hash(this.pin, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Compare PIN method
+userSchema.methods.comparePin = async function(candidatePin) {
+    return await bcrypt.compare(candidatePin, this.pin);
+};
+
+// Update lastActive
+userSchema.methods.updateLastActive = function() {
+    this.lastActive = new Date();
+    return this.save();
+};
+
+// Virtual for full profile
+userSchema.virtual('profile').get(function() {
+    return {
+        id: this._id,
+        phoneNumber: this.phoneNumber,
+        fullName: this.fullName,
+        language: this.language,
+        conditions: this.conditions,
+        emergencyContact: this.emergencyContact,
+        notificationPreferences: this.notificationPreferences,
+        role: this.role,
+        isActive: this.isActive
+    };
+});
+
+module.exports = mongoose.model('User', userSchema);

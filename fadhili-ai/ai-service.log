@@ -1,0 +1,22 @@
+{"level":"info","message":"?? Fadhili AI Service running on port 5001","timestamp":"2026-03-09T23:10:33.408Z"}
+{"level":"info","message":"? Connected to MongoDB","timestamp":"2026-03-09T23:10:33.482Z"}
+{"level":"info","message":"?? Fadhili AI Service running on port 5001","timestamp":"2026-03-09T23:13:43.371Z"}
+{"level":"info","message":"? Connected to MongoDB","timestamp":"2026-03-09T23:13:43.470Z"}
+{"level":"info","message":"?? Fadhili AI Service running on port 5001","timestamp":"2026-03-10T12:37:30.035Z"}
+{"level":"info","message":"? Connected to MongoDB","timestamp":"2026-03-10T12:37:30.393Z"}
+{"level":"info","message":"?? Fadhili AI Service running on port 5001","timestamp":"2026-03-12T12:12:50.440Z"}
+{"level":"info","message":"? Connected to MongoDB","timestamp":"2026-03-12T12:12:50.801Z"}
+{"level":"info","message":"GET /health","timestamp":"2026-04-29T14:33:02.081Z"}
+{"level":"info","message":"POST /process","timestamp":"2026-04-29T14:33:02.853Z"}
+{"level":"info","message":"POST /process","timestamp":"2026-04-29T14:33:02.933Z"}
+{"level":"info","message":"? Connected to MongoDB","timestamp":"2026-04-29T14:33:03.888Z"}
+{"level":"info","message":"?? Fadhili AI Service running on port 5001","timestamp":"2026-04-29T14:46:54.131Z"}
+{"level":"info","message":"GET /process","timestamp":"2026-04-29T14:47:11.275Z"}
+{"level":"info","message":"GET /favicon.ico","timestamp":"2026-04-29T14:47:11.813Z"}
+{"level":"info","message":"GET /.well-known/appspecific/com.chrome.devtools.json","timestamp":"2026-04-29T14:47:19.827Z"}
+{"level":"info","message":"POST /process","timestamp":"2026-04-29T14:51:33.793Z"}
+{"level":"info","message":"POST /process","timestamp":"2026-04-29T14:53:25.525Z"}
+{"level":"info","message":"GET /process","timestamp":"2026-04-29T14:54:27.231Z"}
+{"level":"info","message":"POST /process","timestamp":"2026-04-29T14:57:39.968Z"}
+{"level":"info","message":"GET /health","timestamp":"2026-04-29T22:31:05.185Z"}
+{"level":"info","message":"GET /health","timestamp":"2026-04-29T22:46:02.244Z"}
