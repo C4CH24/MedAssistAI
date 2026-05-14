@@ -1,0 +1,1 @@
+exports.findForUser = async (userId) => [];

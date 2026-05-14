@@ -1,0 +1,87 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const userSchema = new mongoose.Schema({
+    phoneNumber: {
+        type: String,
+        required: [true, 'Phone number is required'],
+        unique: true,
+        trim: true,
+        match: [/^[0-9]{9}$/, 'Please enter a valid 9-digit phone number']
+    },
+    fullName: {
+        type: String,
+        required: [true, 'Full name is required'],
+        trim: true,
+        maxlength: [50, 'Name cannot exceed 50 characters']
+    },
+    pin: {
+        type: String,
+        required: [true, 'PIN is required'],
+        // REMOVED: maxlength: 6 - hashed PIN is 60 chars!
+        select: false // Don't return PIN by default in queries
+    },
+    language: {
+        type: String,
+        enum: ['en', 'sw'],
+        default: 'en'
+    },
+    conditions: [{
+        type: String
+    }],
+    emergencyContact: String,
+    role: {
+        type: String,
+        enum: ['patient', 'caregiver', 'provider', 'admin'],
+        default: 'patient'
+    },
+    isActive: {
+        type: Boolean,
+        default: true,
+        description: 'Indicates whether the account is active (prevents login when false)'
+    },
+    dataConsent: {
+        type: Boolean,
+        default: false,
+        required: [true, 'Data consent is required']
+    },
+    lastActive: Date,
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+}, {
+    timestamps: true
+});
+
+// index for queries filtering by activity status
+userSchema.index({ isActive: 1 });
+
+
+// Hash PIN before saving
+userSchema.pre('save', async function(next) {
+    if (!this.isModified('pin')) return next();
+    
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.pin = await bcrypt.hash(this.pin, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Compare PIN method
+userSchema.methods.comparePin = async function(enteredPin) {
+    return await bcrypt.compare(enteredPin, this.pin);
+};
+
+// Don't return PIN in JSON responses
+userSchema.set('toJSON', {
+    transform: function(doc, ret, options) {
+        delete ret.pin;
+        return ret;
+    }
+});
+
+module.exports = mongoose.model('User', userSchema);

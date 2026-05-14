@@ -1,0 +1,295 @@
+﻿const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
+const { sendSMS } = require('../services/sms.service');
+const { generateToken } = require('../utils/generateToken');
+const crypto = require('crypto');
+
+// Temporary storage for PINs (in production, use Redis)
+const pinStore = new Map();
+
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
+exports.register = async (req, res, next) => {
+    try {
+        // Check validation errors
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
+            });
+        }
+
+        const { phoneNumber, fullName, conditions, emergencyContact, language, dataConsent } = req.body;
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ phoneNumber });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'User already exists with this phone number'
+            });
+        }
+
+        // Create user
+        const user = await User.create({
+            phoneNumber,
+            fullName,
+            conditions: conditions || [],
+            emergencyContact,
+            language: language || 'en',
+            isActive: true,          // new accounts should be active by default
+            dataConsent,
+            consentGivenAt: dataConsent ? new Date() : null
+        });
+
+        // Generate JWT token
+        const token = generateToken(user._id);
+
+        res.status(201).json({
+            success: true,
+            token,
+            user: user.profile
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
+exports.login = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
+            });
+        }
+
+        const { phoneNumber, pin } = req.body;
+
+        // Find user with PIN field
+        const user = await User.findOne({ phoneNumber }).select('+pin');
+        
+        // DEBUG: Log what we found (only in non-production environments)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('?? DEBUG - User found:', {
+                phoneNumber: user ? user.phoneNumber : null,
+                isActive: user ? user.isActive : null,
+                isActiveType: user ? typeof user.isActive : null,
+                hasIsActive: user ? ('isActive' in user) : false
+            });
+        }
+        
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+
+        // Check if user is active (only fail when explicitly false)
+        if (user.isActive === false) {
+            return res.status(401).json({
+                success: false,
+                message: 'Account is deactivated'
+            });
+        }
+
+        // Verify PIN
+        const isMatch = await user.comparePin(pin);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
+
+        // Update last active
+        await user.updateLastActive();
+
+        // Generate token
+        const token = generateToken(user._id);
+
+        res.json({
+            success: true,
+            token,
+            user: user.profile
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Send verification PIN
+// @route   POST /api/auth/send-pin
+// @access  Public
+exports.sendPin = async (req, res, next) => {
+    try {
+        const { phoneNumber } = req.body;
+
+        // Generate 6-digit PIN
+        const pin = crypto.randomInt(100000, 999999).toString();
+        
+        // Store PIN with expiration (5 minutes)
+        pinStore.set(phoneNumber, {
+            pin,
+            expiresAt: Date.now() + 5 * 60 * 1000,
+            attempts: 0
+        });
+
+        // Auto cleanup after 5 minutes
+        setTimeout(() => {
+            pinStore.delete(phoneNumber);
+        }, 5 * 60 * 1000);
+
+        // Send SMS with PIN
+        await sendSMS(
+            phoneNumber,
+            `Your MedAssistAI verification PIN is: ${pin}. Valid for 5 minutes.`
+        );
+
+        res.json({
+            success: true,
+            message: 'Verification PIN sent successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Verify PIN
+// @route   POST /api/auth/verify-pin
+// @access  Public
+exports.verifyPin = async (req, res, next) => {
+    try {
+        const { phoneNumber, pin } = req.body;
+
+        const storedData = pinStore.get(phoneNumber);
+        
+        if (!storedData) {
+            return res.status(400).json({
+                success: false,
+                message: 'PIN expired or not found'
+            });
+        }
+
+        // Check attempts
+        if (storedData.attempts >= 3) {
+            pinStore.delete(phoneNumber);
+            return res.status(400).json({
+                success: false,
+                message: 'Too many failed attempts. Please request a new PIN.'
+            });
+        }
+
+        // Check expiration
+        if (Date.now() > storedData.expiresAt) {
+            pinStore.delete(phoneNumber);
+            return res.status(400).json({
+                success: false,
+                message: 'PIN expired'
+            });
+        }
+
+        // Verify PIN
+        if (storedData.pin !== pin) {
+            storedData.attempts += 1;
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid PIN'
+            });
+        }
+
+        // Clear PIN after successful verification
+        pinStore.delete(phoneNumber);
+
+        res.json({
+            success: true,
+            message: 'PIN verified successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Get current user
+// @route   GET /api/auth/me
+// @access  Private
+exports.getMe = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            user: user.profile
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+exports.logout = async (req, res, next) => {
+    try {
+        // In a real app, you might want to blacklist the token
+        res.json({
+            success: true,
+            message: 'Logged out successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Change PIN
+// @route   PUT /api/auth/change-pin
+// @access  Private
+exports.changePin = async (req, res, next) => {
+    try {
+        const { currentPin, newPin } = req.body;
+
+        const user = await User.findById(req.userId).select('+pin');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Verify current PIN
+        const isMatch = await user.comparePin(currentPin);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Current PIN is incorrect'
+            });
+        }
+
+        // Update PIN
+        user.pin = newPin;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'PIN changed successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
