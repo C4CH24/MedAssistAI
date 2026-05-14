@@ -1,8 +1,8 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth.middleware');
 const aiService = require('../services/ai.service');
-const AILog = require('../models/AILog');
+const AiLog = require('../models/AiLog');
 
 // @desc    Process AI query
 // @route   POST /api/ai/process
@@ -94,8 +94,8 @@ router.get('/stats', protect, async (req, res, next) => {
         // Check if user is admin (you can add role check middleware)
         const days = parseInt(req.query.days) || 7;
         
-        const usageStats = await AILog.getUsageStats(days);
-        const failoverStats = await AILog.getFailoverStats(days);
+        const usageStats = await AiLog.getUsageStats(days);
+        const failoverStats = await AiLog.getFailoverStats(days);
 
         res.json({
             success: true,

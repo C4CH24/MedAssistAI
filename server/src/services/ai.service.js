@@ -1,5 +1,5 @@
 const axios = require('axios');
-const AILog = require('../models/AILog');
+const AILog = require('../models/AiLog');
 const { v4: uuidv4 } = require('uuid');
 
 class AIService {
