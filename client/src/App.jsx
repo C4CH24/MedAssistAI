@@ -14,10 +14,8 @@ import Register from "./pages/auth/Register";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Medications from "./pages/medications/Medications";
 import AddMedication from "./pages/medications/AddMedication";
-// Note: You don't have Reminders or Profile pages yet, so we'll comment them out
-// import Reminders from "./pages/dashboard/Reminders";
-// import Profile from "./pages/dashboard/Profile";
-// import NotFound from "./pages/NotFound";
+import Reminders from "./pages/dashboard/Reminders";
+import Profile from "./pages/dashboard/Profile";
 
 // Styles
 import "./styles/global.css";
@@ -95,6 +93,22 @@ function App() {
                       element={
                         <PrivateRoute>
                           <AddMedication />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/reminders"
+                      element={
+                        <PrivateRoute>
+                          <Reminders />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <PrivateRoute>
+                          <Profile />
                         </PrivateRoute>
                       }
                     />
