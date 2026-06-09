@@ -19,11 +19,11 @@ const { errorHandler } = require('./middleware/error.middleware');
 const app = express();
 
 // Global middleware
-app.use(helmet());
 app.use(cors({
     origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5001'],
     credentials: true
 }));
+app.use(helmet());
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
