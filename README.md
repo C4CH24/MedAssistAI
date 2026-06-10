@@ -1,5 +1,7 @@
 ﻿# MedAssist — AI-Powered Healthcare Management System
 
+ My YouTube link for the project is: https://youtu.be/Qksoe5svm7o?si=bBjx8L4G8J-STBFw
+
 **MedAssist** is a full-stack healthcare platform that supports medication adherence, intelligent reminders, AI guidance, and payment workflows for patient care.
 
 ## Project Overview
